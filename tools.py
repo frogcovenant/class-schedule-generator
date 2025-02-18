@@ -65,6 +65,8 @@ def get_course_options(df, materia):
 
 
 def get_combinations_no_repeated_course_no_overlaps(elements, M):
+    print(elements)
+    input()
     # print(f"OPCIONES DE HORARIO: \n{elements} ")
     # all_combinations = combinations(elements, M)
     # unique_combinations = [
@@ -76,6 +78,9 @@ def get_combinations_no_repeated_course_no_overlaps(elements, M):
 
     # this uses generators to avoid performance issues
     # Stack to keep track of (start_index, current_combination)
+
+    # TODO: consider if it's necessary to improve performance with generators
+
     stack = [(0, [])]
     while stack:
         start, current_combo = stack.pop()
@@ -84,13 +89,14 @@ def get_combinations_no_repeated_course_no_overlaps(elements, M):
             if len(set(element.nombre for element in current_combo)) == M and \
                all(not current_combo[i].horario.overlaps(current_combo[j].horario) for i in range(M) for j in range(i + 1, M)):
                 yield tuple(current_combo)
+            
             continue
 
         for i in range(start, len(elements)):
             stack.append((i + 1, current_combo + [elements[i]]))
 
 
-def save_schedules_to_csv(major, semester, schedules, filename):
+def save_schedules_to_csv(schedules, filename):
     fieldnames = [course.name for course in schedules[0]]
     with open(filename, 'w', newline='') as csvfile:
         writer = csv.writer(csvfile)
