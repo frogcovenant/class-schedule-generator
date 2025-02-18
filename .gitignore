@@ -1,3 +1,6 @@
-Files
-Out
-__pycache__
+# Project stuff
+Files/
+Out/
+
+# Python stuff
+__pycache__/
