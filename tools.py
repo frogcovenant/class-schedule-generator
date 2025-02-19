@@ -39,7 +39,7 @@ def generate_schedules(required_courses, optional_courses):
                     valid_schedules.append(full_comb)
     return valid_schedules
 
-
+# Generate course options without considering overlapping schedules
 def get_course_options(df, materia):
     opciones = []
 
@@ -65,8 +65,7 @@ def get_course_options(df, materia):
 
 
 def get_combinations_no_repeated_course_no_overlaps(elements, M):
-    print(elements)
-    input()
+    # TODO: delete?
     # print(f"OPCIONES DE HORARIO: \n{elements} ")
     # all_combinations = combinations(elements, M)
     # unique_combinations = [
@@ -85,14 +84,18 @@ def get_combinations_no_repeated_course_no_overlaps(elements, M):
     while stack:
         start, current_combo = stack.pop()
 
-        if len(current_combo) == M:
+        if len(current_combo) == M: # stops when the schedule has all of its required classes
+            # if all required classes are in the set (?)
             if len(set(element.nombre for element in current_combo)) == M and \
                all(not current_combo[i].horario.overlaps(current_combo[j].horario) for i in range(M) for j in range(i + 1, M)):
+                # if the class schedule doesn't overlap with the current combo and we still have classes to add,
+                # you can return the current combo...
                 yield tuple(current_combo)
-            
+            # ... and continue finding more classes to add
             continue
 
         for i in range(start, len(elements)):
+            # add courses to the stack from the current combo
             stack.append((i + 1, current_combo + [elements[i]]))
 
 

@@ -14,6 +14,7 @@ WINDOW_TITLE = 'Seleccionar archivos'
 OK_BUTTON_TEXT = 'Generar horarios'
 BROWSE_BUTTON_TEXT = 'Examinar'
 FILES_DESCRIPTIONS = ['Archivo de planta:', 'Archivo de planes:']
+DEBUG_MODE = True
 
 
 def errorMessage(message):
@@ -63,23 +64,34 @@ def create_schedule_options(planes_path, planta_df):
         all_posibles_schedules = get_combinations_no_repeated_course_no_overlaps(
             semester_options, actual_count_of_required_courses_with_schedules)
         options[f"{major} - {semester}"] = []
+
+
         for i in range(N):
             try:
                 options[f"{major} - {semester}"].append(
                     next(all_posibles_schedules))
             except:
                 i -= 1
-        # print(f"{major} - {semester}\n {options[f'{major} - {semester}']}\n")
 
+    counts = dict()
     # Example to print the dictionary
     for key, value in options.items():
         try:
             horarios = [schedule_to_df(schedules) for schedules in value]
+
+            for v in value:
+                for s in v:
+                    #print(s.seccion)
+                    #input()
+                    key = f"{s.seccion} {s.nombre}"
+                    counts[key] = counts.get(key, 0) + 1
+            
+            #seccion = value.split(" ", 1)
+            #input()
             # Check if horarios is empty or contains only empty dataframes
             if all(df.empty for df in horarios):
                 message = f"No se pudo obtener horarios para {key}"
                 raise ValueError(message)
-            
 
             # Create an ExcelWriter object
             with pd.ExcelWriter(f"Out/OPCIONES PARA {key}.xlsx") as writer:
@@ -91,6 +103,14 @@ def create_schedule_options(planes_path, planta_df):
 
         except Exception as e:
             print(e)
+    
+    # Sort dictionary by values in descending order
+    sorted_counts = sorted(counts.items(), key=lambda x: x[1], reverse=True)
+
+    # Write to a text file
+    with open("Out/occurrences.txt", "w", encoding="utf-8") as file:
+        for key, value in sorted_counts:
+            file.write(f"{key}: {value}\n")
 
 
 def showFileSelector():
@@ -142,14 +162,10 @@ def explorer_on_file(url):
 
 
 def main():
-    # TODO: remove this from here and import the function and use were needed.
-    files = showFileSelector()
-    # ARCHIVOS
-    if len(files) > 0:
-        planta_path = files[0]
-        planes_path = files[1]
+    if DEBUG_MODE:
+        planta_path = "Files/Planta/agosto/Planta 2025-1 (1248) - Planta.csv"
+        planes_path = "Files/Planes/agosto/primer semestre - plan.csv"
 
-        
         df = pd.read_csv(planta_path, encoding='utf-8')
 
         # Para no tomar horarios repetidos, usar CP y SC
@@ -158,6 +174,25 @@ def main():
 
         create_schedule_options(planes_path, planta_df)
         explorer_on_file("Out")
+        
+    else:
+        files = showFileSelector()
+        # ARCHIVOS
+        if len(files) > 0:
+            planta_path = files[0]
+            planes_path = files[1]
+
+            
+            df = pd.read_csv(planta_path, encoding='utf-8')
+
+            # Para no tomar horarios repetidos, usar CP y SC
+            planta_df = df[df['SC - Sección Combinada'] != 'CH']
+            planta_df.rename(columns={'ID\nCOURSE': 'ID COURSE'},  inplace=True)
+
+            create_schedule_options(planes_path, planta_df)
+            explorer_on_file("Out")
+    
+    
 
 
 
