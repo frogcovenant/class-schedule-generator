@@ -1,5 +1,4 @@
 import csv
-import subprocess
 import os
 import pandas as pd
 import tkinter as tk
@@ -81,13 +80,9 @@ def create_schedule_options(planes_path, planta_df):
 
             for v in value:
                 for s in v:
-                    #print(s.seccion)
-                    #input()
-                    key = f"{s.seccion} {s.nombre}"
-                    counts[key] = counts.get(key, 0) + 1
+                    course_key = f"{s.seccion} {s.nombre}"
+                    counts[course_key] = counts.get(course_key, 0) + 1
             
-            #seccion = value.split(" ", 1)
-            #input()
             # Check if horarios is empty or contains only empty dataframes
             if all(df.empty for df in horarios):
                 message = f"No se pudo obtener horarios para {key}"
@@ -104,8 +99,8 @@ def create_schedule_options(planes_path, planta_df):
         except Exception as e:
             print(e)
     
-    # Sort dictionary by values in descending order
-    sorted_counts = sorted(counts.items(), key=lambda x: x[1], reverse=True)
+    # Sort dictionary by the course name without the class section and by highest to lowest value
+    sorted_counts = sorted(counts.items(), key=lambda x: ("".join(x[0].split()[1::]),x[1]), reverse=True)
 
     # Write to a text file
     with open("Out/occurrences.txt", "w", encoding="utf-8") as file:
