@@ -1,26 +1,30 @@
 import csv
 import os
+import shutil
 import pandas as pd
 import tkinter as tk
 from tkinter import filedialog
 from tkinter import messagebox
 from collections import defaultdict
 from random import shuffle
+from pathlib import Path
 
 from tools import get_course_options, get_combinations_no_repeated_course_no_overlaps, schedule_to_df
 
 WINDOW_TITLE = 'Seleccionar archivos'
 OK_BUTTON_TEXT = 'Generar horarios'
 BROWSE_BUTTON_TEXT = 'Examinar'
+DELETE_BUTTON_TEXT = 'Borrar archivos'
 FILES_DESCRIPTIONS = ['Archivo de planta:', 'Archivo de planes:']
-DEBUG_MODE = True
+DEBUG_MODE = False
+OUT_PATH = 'Out/'
+N = 5
 
 
 def errorMessage(message):
     messagebox.askretrycancel(message)
 
 def create_schedule_options(planes_path, planta_df):
-    N = 10
     # Initialize the dictionary
     planes_academicos = defaultdict(lambda: {"required": [], "optional": []})
 
@@ -131,6 +135,18 @@ def showFileSelector():
     def on_closing():
         if messagebox.askokcancel("Cerrar", "¿Quieres cerrar el programa?"):
             root.destroy()
+    
+    def on_delete():
+        for _, dirs, files in os.walk(OUT_PATH):
+            for f in files:
+                os.unlink(os.path.join(_, f))
+            for d in dirs:
+                shutil.rmtree(os.path.join(_, d))
+
+    def on_spinbox_change():
+        # update N
+        N = spinbox.get()
+        
 
     root = tk.Tk()
     root.title(WINDOW_TITLE)
@@ -141,10 +157,19 @@ def showFileSelector():
         tk.Label(root, text=desc).grid(row=i, column=0, padx=5, pady=5, sticky='w')
         tk.Entry(root, textvariable=file_vars[i], width=50, state='readonly').grid(row=i, column=1, padx=5, pady=5)
         tk.Button(root, text=BROWSE_BUTTON_TEXT, command=lambda i=i: select_file(i)).grid(row=i, column=2, padx=5, pady=5)
+        
 
     ok_button = tk.Button(root, text=OK_BUTTON_TEXT, command=on_ok, state=tk.DISABLED)
-    ok_button.grid(row=len(FILES_DESCRIPTIONS), column=0, columnspan=3, pady=10)
+    
 
+    # Only if there are files available to delete
+    if len(os.listdir(OUT_PATH)) > 0:
+        delete_button = tk.Button(root, text=DELETE_BUTTON_TEXT, command=on_delete)
+    else:
+        delete_button = tk.Button(root, text=DELETE_BUTTON_TEXT, command=on_delete, state=tk.DISABLED)
+
+    ok_button.grid(row=len(FILES_DESCRIPTIONS), column=0, columnspan=3, pady=10)
+    delete_button.grid(row=len(FILES_DESCRIPTIONS)+1, column=0, columnspan=3, pady=10)
 
     root.protocol("WM_DELETE_WINDOW", on_closing)
     root.mainloop()
@@ -156,7 +181,10 @@ def explorer_on_file(url):
     os.startfile(url)
 
 
-def main():
+def main(): 
+    # Crea la carpeta de Out si es que no existe
+    Path(OUT_PATH).mkdir(parents=True, exist_ok=True)
+
     if DEBUG_MODE:
         planta_path = "Files/Planta/agosto/Planta 2025-1 (1248) - Planta.csv"
         planes_path = "Files/Planes/agosto/primer semestre - plan.csv"
