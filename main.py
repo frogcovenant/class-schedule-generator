@@ -9,7 +9,9 @@ from collections import defaultdict
 from random import shuffle
 from pathlib import Path
 
+from IntegerEntry import IntegerEntry
 from tools import get_course_options, get_combinations_no_repeated_course_no_overlaps, schedule_to_df
+
 
 WINDOW_TITLE = 'Seleccionar archivos'
 OK_BUTTON_TEXT = 'Generar horarios'
@@ -18,13 +20,19 @@ DELETE_BUTTON_TEXT = 'Borrar archivos'
 FILES_DESCRIPTIONS = ['Archivo de planta:', 'Archivo de planes:']
 DEBUG_MODE = False
 OUT_PATH = 'Out/'
-N = 5
 
 
 def errorMessage(message):
-    messagebox.askretrycancel(message)
+    root = tk.Tk()
+    root.withdraw()  # Hide the main window
+    
+    retry = messagebox.askretrycancel("Error", message)  # Show the error message
+    root.destroy()  # Destroy the root window after messagebox closes
+    
+    if retry:
+        showFileSelector()  # Call showFileSelector() if the user chooses "Retry"
 
-def create_schedule_options(planes_path, planta_df):
+def create_schedule_options(planes_path, planta_df, N):
     # Initialize the dictionary
     planes_academicos = defaultdict(lambda: {"required": [], "optional": []})
 
@@ -101,7 +109,7 @@ def create_schedule_options(planes_path, planta_df):
                     df.to_excel(writer, sheet_name=sheet_name, index=True)
 
         except Exception as e:
-            print(e)
+             errorMessage(str(e))  # Show error popup
     
     # Sort dictionary by the course name without the class section and by highest to lowest value
     sorted_counts = sorted(counts.items(), key=lambda x: ("".join(x[0].split()[1::]),x[1]), reverse=True)
@@ -114,6 +122,7 @@ def create_schedule_options(planes_path, planta_df):
 
 def showFileSelector():
     selected_files = []
+    n_value = 5
 
     def select_file(index):
         file_path = filedialog.askopenfilename()
@@ -130,7 +139,14 @@ def showFileSelector():
     def on_ok():
         nonlocal selected_files
         selected_files = [file_vars[i].get() for i in range(len(FILES_DESCRIPTIONS))]
+        nonlocal n_value 
+        if n_entry.get() != "":
+            n_value = int(n_entry.get())
         root.destroy()
+
+        if n_value <= 0:
+            errorMessage("Ingresa un valor válido para los horarios")
+
 
     def on_closing():
         if messagebox.askokcancel("Cerrar", "¿Quieres cerrar el programa?"):
@@ -143,13 +159,14 @@ def showFileSelector():
             for d in dirs:
                 shutil.rmtree(os.path.join(_, d))
 
-    def on_spinbox_change():
-        # update N
-        N = spinbox.get()
-        
+        # Update the button state after deleting files
+        if not os.listdir(OUT_PATH):  # Check if the folder is empty
+            delete_button.config(state=tk.DISABLED)
+
 
     root = tk.Tk()
     root.title(WINDOW_TITLE)
+
 
     file_vars = [tk.StringVar() for _ in range(len(FILES_DESCRIPTIONS))]
 
@@ -157,24 +174,28 @@ def showFileSelector():
         tk.Label(root, text=desc).grid(row=i, column=0, padx=5, pady=5, sticky='w')
         tk.Entry(root, textvariable=file_vars[i], width=50, state='readonly').grid(row=i, column=1, padx=5, pady=5)
         tk.Button(root, text=BROWSE_BUTTON_TEXT, command=lambda i=i: select_file(i)).grid(row=i, column=2, padx=5, pady=5)
-        
-
-    ok_button = tk.Button(root, text=OK_BUTTON_TEXT, command=on_ok, state=tk.DISABLED)
     
+    n_entry = IntegerEntry(root, width=25)
+    ok_button = tk.Button(root, text=OK_BUTTON_TEXT, command=on_ok, state=tk.DISABLED)
+    delete_button = tk.Button(root, text=DELETE_BUTTON_TEXT, command=on_delete)
 
     # Only if there are files available to delete
-    if len(os.listdir(OUT_PATH)) > 0:
-        delete_button = tk.Button(root, text=DELETE_BUTTON_TEXT, command=on_delete)
-    else:
-        delete_button = tk.Button(root, text=DELETE_BUTTON_TEXT, command=on_delete, state=tk.DISABLED)
+    if not os.listdir(OUT_PATH):
+        delete_button.config(state=tk.DISABLED)
+    
+    delete_button.grid(row=len(FILES_DESCRIPTIONS)+2, column=0, columnspan=3, pady=10)
 
-    ok_button.grid(row=len(FILES_DESCRIPTIONS), column=0, columnspan=3, pady=10)
-    delete_button.grid(row=len(FILES_DESCRIPTIONS)+1, column=0, columnspan=3, pady=10)
+
+    # place widgets on grid
+    n_entry.grid(row=len(FILES_DESCRIPTIONS), column=0, columnspan=3, pady=5, padx=3)
+    ok_button.grid(row=len(FILES_DESCRIPTIONS)+1, column=0, columnspan=3, pady=10)
+    delete_button.grid(row=len(FILES_DESCRIPTIONS)+2, column=0, columnspan=3, pady=10)
+    
 
     root.protocol("WM_DELETE_WINDOW", on_closing)
     root.mainloop()
 
-    return selected_files
+    return selected_files, n_value
 
 def explorer_on_file(url):
     """ opens a windows explorer window """
@@ -199,7 +220,7 @@ def main():
         explorer_on_file("Out")
         
     else:
-        files = showFileSelector()
+        files, N = showFileSelector()
         # ARCHIVOS
         if len(files) > 0:
             planta_path = files[0]
@@ -212,7 +233,7 @@ def main():
             planta_df = df[df['SC - Sección Combinada'] != 'CH']
             planta_df.rename(columns={'ID\nCOURSE': 'ID COURSE'},  inplace=True)
 
-            create_schedule_options(planes_path, planta_df)
+            create_schedule_options(planes_path, planta_df, N)
             explorer_on_file("Out")
     
     
