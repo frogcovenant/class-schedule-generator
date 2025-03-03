@@ -65,21 +65,6 @@ def get_course_options(df, materia):
 
 
 def get_combinations_no_repeated_course_no_overlaps(elements, M):
-    # TODO: delete?
-    # print(f"OPCIONES DE HORARIO: \n{elements} ")
-    # all_combinations = combinations(elements, M)
-    # unique_combinations = [
-    #     combo for combo in all_combinations
-    #     if len(set(element.nombre for element in combo)) == M and
-    #        all(not combo[i].horario.overlaps(combo[j].horario) for i in range(M) for j in range(i + 1, M))
-    # ]
-    # return unique_combinations
-
-    # this uses generators to avoid performance issues
-    # Stack to keep track of (start_index, current_combination)
-
-    # TODO: consider if it's necessary to improve performance with generators
-
     stack = [(0, [])]
     while stack:
         start, current_combo = stack.pop()

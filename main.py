@@ -1,6 +1,7 @@
 import csv
 import os
 import shutil
+import random
 import pandas as pd
 import tkinter as tk
 from tkinter import filedialog
@@ -20,6 +21,7 @@ DELETE_BUTTON_TEXT = 'Borrar archivos'
 FILES_DESCRIPTIONS = ['Archivo de planta:', 'Archivo de planes:']
 DEBUG_MODE = False
 OUT_PATH = 'Out/'
+MAX_OPTIONS_PER_COURSE = 10
 
 
 def errorMessage(message):
@@ -63,7 +65,8 @@ def create_schedule_options(planes_path, planta_df, N):
         # obtener las materias del plan de estudios
         for course in value['required']:
             course_options = get_course_options(planta_df, course)
-            semester_options.extend(course_options)
+
+            semester_options.extend(course_options[:MAX_OPTIONS_PER_COURSE])
             if len(course_options):
                 actual_count_of_required_courses_with_schedules += 1
 
@@ -72,6 +75,7 @@ def create_schedule_options(planes_path, planta_df, N):
         #   semester_options.extend(course_options)
 
         # random shuffle to the options so that each time we get different ones in different order
+        random.seed(hash(f"{major}-{semester}"))  # Semilla basada en el semestre
         shuffle(semester_options)
         all_posibles_schedules = get_combinations_no_repeated_course_no_overlaps(
             semester_options, actual_count_of_required_courses_with_schedules)
