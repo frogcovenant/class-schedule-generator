@@ -1,4 +1,5 @@
 import csv
+from multiprocessing import Pool
 import os
 import shutil
 import pandas as pd
@@ -6,7 +7,7 @@ import tkinter as tk
 from tkinter import filedialog
 from tkinter import messagebox
 from collections import defaultdict
-from random import shuffle
+from random import shuffle, seed
 from pathlib import Path
 
 from IntegerEntry import IntegerEntry
@@ -20,6 +21,7 @@ DELETE_BUTTON_TEXT = 'Borrar archivos'
 FILES_DESCRIPTIONS = ['Archivo de planta:', 'Archivo de planes:']
 DEBUG_MODE = False
 OUT_PATH = 'Out/'
+MAX_OPTIONS_PER_COURSE = 10
 
 
 def errorMessage(message):
@@ -32,6 +34,47 @@ def errorMessage(message):
 
     if retry:
         start_GUI()  # try again
+
+def process_semester(args):
+    major, semester, value, planta_df, N = args
+    semester_options = []
+    actual_count_of_required_courses_with_schedules = 0
+    
+    seed(hash(f"{major}-{semester}"))  # Semilla basada en el semestre
+    
+    # Obtener las materias del plan de estudios
+    for course in value['required']:
+        course_options = get_course_options(planta_df, course)
+        shuffle(course_options)
+        semester_options.extend(course_options[:MAX_OPTIONS_PER_COURSE])
+        
+        if course_options:
+            actual_count_of_required_courses_with_schedules += 1
+    
+    all_possible_schedules = get_combinations_no_repeated_course_no_overlaps(
+        semester_options, actual_count_of_required_courses_with_schedules
+    )
+    
+    schedules = []
+    for _ in range(N):
+        try:
+            schedules.append(next(all_possible_schedules))
+        except StopIteration:
+            break
+    
+    return f"{major} - {semester}", schedules
+
+def parallel_processing(planes_academicos, planta_df, N):
+    options = defaultdict(list)
+    
+    with Pool() as pool:
+        args = [(major, semester, value, planta_df, N) for (major, semester), value in planes_academicos.items()]
+        results = pool.map(process_semester, args)
+        
+    for key, schedules in results:
+        options[key] = schedules
+    
+    return options
 
 
 def create_schedule_options(planes_path, planta_df, N):
@@ -53,36 +96,7 @@ def create_schedule_options(planes_path, planta_df, N):
             else:
                 planes_academicos[(major, semester)]["required"].append(plan)
 
-    # Initialize the dictionary to store options
-    options = defaultdict(list)
-
-    # Assuming planta_df is your DataFrame containing course information
-    for [major, semester], value in planes_academicos.items():
-        semester_options = []
-        actual_count_of_required_courses_with_schedules = 0
-        # obtener las materias del plan de estudios
-        for course in value['required']:
-            course_options = get_course_options(planta_df, course)
-            semester_options.extend(course_options)
-            if len(course_options):
-                actual_count_of_required_courses_with_schedules += 1
-
-        # for course in value['optional']:
-        #   course_options = get_course_options(planta_df, course)
-        #   semester_options.extend(course_options)
-
-        # random shuffle to the options so that each time we get different ones in different order
-        shuffle(semester_options)
-        all_posibles_schedules = get_combinations_no_repeated_course_no_overlaps(
-            semester_options, actual_count_of_required_courses_with_schedules)
-        options[f"{major} - {semester}"] = []
-
-        for i in range(N):
-            try:
-                options[f"{major} - {semester}"].append(
-                    next(all_posibles_schedules))
-            except:
-                i -= 1
+    options = parallel_processing(planes_academicos, planta_df, N)
 
     counts = dict()
     # Example to print the dictionary
@@ -235,6 +249,7 @@ def main():
     Path(OUT_PATH).mkdir(parents=True, exist_ok=True)
 
     if DEBUG_MODE:
+        N = 5
         planta_path = "Files/Planta/agosto/Planta 2025-1 (1248) - Planta.csv"
         planes_path = "Files/Planes/agosto/primer semestre - plan.csv"
 
@@ -244,7 +259,7 @@ def main():
         planta_df = df[df['SC - Sección Combinada'] != 'CH']
         planta_df.rename(columns={'ID\nCOURSE': 'ID COURSE'},  inplace=True)
 
-        create_schedule_options(planes_path, planta_df)
+        create_schedule_options(planes_path, planta_df, N)
         explorer_on_file("Out")
     else:
         start_GUI()
