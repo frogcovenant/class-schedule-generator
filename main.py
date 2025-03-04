@@ -19,9 +19,9 @@ OK_BUTTON_TEXT = 'Generar horarios'
 BROWSE_BUTTON_TEXT = 'Examinar'
 DELETE_BUTTON_TEXT = 'Borrar archivos'
 FILES_DESCRIPTIONS = ['Archivo de planta:', 'Archivo de planes:']
-DEBUG_MODE = True
+DEBUG_MODE = False
 OUT_PATH = 'Out/'
-MAX_OPTIONS_PER_COURSE = 5
+MAX_OPTIONS_PER_COURSE = 10
 
 
 def errorMessage(message):
