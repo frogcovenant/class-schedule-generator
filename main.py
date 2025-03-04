@@ -19,9 +19,9 @@ OK_BUTTON_TEXT = 'Generar horarios'
 BROWSE_BUTTON_TEXT = 'Examinar'
 DELETE_BUTTON_TEXT = 'Borrar archivos'
 FILES_DESCRIPTIONS = ['Archivo de planta:', 'Archivo de planes:']
-DEBUG_MODE = False
+DEBUG_MODE = True
 OUT_PATH = 'Out/'
-MAX_OPTIONS_PER_COURSE = 10
+MAX_OPTIONS_PER_COURSE = 5
 
 
 def errorMessage(message):
@@ -62,9 +62,15 @@ def create_schedule_options(planes_path, planta_df, N):
     for [major, semester], value in planes_academicos.items():
         semester_options = []
         actual_count_of_required_courses_with_schedules = 0
+
+        random.seed(hash(f"{major}-{semester}"))  # Semilla basada en el semestre
+
         # obtener las materias del plan de estudios
         for course in value['required']:
             course_options = get_course_options(planta_df, course)
+
+            # random shuffle to the options so that each time we get different ones in different order
+            shuffle(course_options)
 
             semester_options.extend(course_options[:MAX_OPTIONS_PER_COURSE])
             if len(course_options):
@@ -74,9 +80,6 @@ def create_schedule_options(planes_path, planta_df, N):
         #   course_options = get_course_options(planta_df, course)
         #   semester_options.extend(course_options)
 
-        # random shuffle to the options so that each time we get different ones in different order
-        random.seed(hash(f"{major}-{semester}"))  # Semilla basada en el semestre
-        shuffle(semester_options)
         all_posibles_schedules = get_combinations_no_repeated_course_no_overlaps(
             semester_options, actual_count_of_required_courses_with_schedules)
         options[f"{major} - {semester}"] = []
@@ -239,6 +242,7 @@ def main():
     Path(OUT_PATH).mkdir(parents=True, exist_ok=True)
 
     if DEBUG_MODE:
+        N = 5
         planta_path = "Files/Planta/agosto/Planta 2025-1 (1248) - Planta.csv"
         planes_path = "Files/Planes/agosto/primer semestre - plan.csv"
 
@@ -248,7 +252,7 @@ def main():
         planta_df = df[df['SC - Sección Combinada'] != 'CH']
         planta_df.rename(columns={'ID\nCOURSE': 'ID COURSE'},  inplace=True)
 
-        create_schedule_options(planes_path, planta_df)
+        create_schedule_options(planes_path, planta_df, N)
         explorer_on_file("Out")
     else:
         start_GUI()
