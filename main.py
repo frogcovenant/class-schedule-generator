@@ -1,13 +1,13 @@
 import csv
+from multiprocessing import Pool
 import os
 import shutil
-import random
 import pandas as pd
 import tkinter as tk
 from tkinter import filedialog
 from tkinter import messagebox
 from collections import defaultdict
-from random import shuffle
+from random import shuffle, seed
 from pathlib import Path
 
 from IntegerEntry import IntegerEntry
@@ -35,6 +35,47 @@ def errorMessage(message):
     if retry:
         start_GUI()  # try again
 
+def process_semester(args):
+    major, semester, value, planta_df, N = args
+    semester_options = []
+    actual_count_of_required_courses_with_schedules = 0
+    
+    seed(hash(f"{major}-{semester}"))  # Semilla basada en el semestre
+    
+    # Obtener las materias del plan de estudios
+    for course in value['required']:
+        course_options = get_course_options(planta_df, course)
+        shuffle(course_options)
+        semester_options.extend(course_options[:MAX_OPTIONS_PER_COURSE])
+        
+        if course_options:
+            actual_count_of_required_courses_with_schedules += 1
+    
+    all_possible_schedules = get_combinations_no_repeated_course_no_overlaps(
+        semester_options, actual_count_of_required_courses_with_schedules
+    )
+    
+    schedules = []
+    for _ in range(N):
+        try:
+            schedules.append(next(all_possible_schedules))
+        except StopIteration:
+            break
+    
+    return f"{major} - {semester}", schedules
+
+def parallel_processing(planes_academicos, planta_df, N):
+    options = defaultdict(list)
+    
+    with Pool() as pool:
+        args = [(major, semester, value, planta_df, N) for (major, semester), value in planes_academicos.items()]
+        results = pool.map(process_semester, args)
+        
+    for key, schedules in results:
+        options[key] = schedules
+    
+    return options
+
 
 def create_schedule_options(planes_path, planta_df, N):
     # Initialize the dictionary
@@ -55,41 +96,7 @@ def create_schedule_options(planes_path, planta_df, N):
             else:
                 planes_academicos[(major, semester)]["required"].append(plan)
 
-    # Initialize the dictionary to store options
-    options = defaultdict(list)
-
-    # Assuming planta_df is your DataFrame containing course information
-    for [major, semester], value in planes_academicos.items():
-        semester_options = []
-        actual_count_of_required_courses_with_schedules = 0
-
-        random.seed(hash(f"{major}-{semester}"))  # Semilla basada en el semestre
-
-        # obtener las materias del plan de estudios
-        for course in value['required']:
-            course_options = get_course_options(planta_df, course)
-
-            # random shuffle to the options so that each time we get different ones in different order
-            shuffle(course_options)
-
-            semester_options.extend(course_options[:MAX_OPTIONS_PER_COURSE])
-            if len(course_options):
-                actual_count_of_required_courses_with_schedules += 1
-
-        # for course in value['optional']:
-        #   course_options = get_course_options(planta_df, course)
-        #   semester_options.extend(course_options)
-
-        all_posibles_schedules = get_combinations_no_repeated_course_no_overlaps(
-            semester_options, actual_count_of_required_courses_with_schedules)
-        options[f"{major} - {semester}"] = []
-
-        for i in range(N):
-            try:
-                options[f"{major} - {semester}"].append(
-                    next(all_posibles_schedules))
-            except:
-                i -= 1
+    options = parallel_processing(planes_academicos, planta_df, N)
 
     counts = dict()
     # Example to print the dictionary
